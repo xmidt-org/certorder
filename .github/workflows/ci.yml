@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: 2025 Comcast Cable Communications Management, LLC
+# SPDX-License-Identifier: Apache-2.0
+
+---
+name: CI
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.txt'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'NOTICE'
+      - '**/docs/**'
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.txt'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'NOTICE'
+      - '**/docs/**'
+  workflow_dispatch:
+
+jobs:
+  test:
+    uses: xmidt-org/shared-go/.github/workflows/ci.yml@a98d20363e6225b37af9aa8d2b3c4bdfedbe8020 # v4.8.7
+    with:
+      release-type:          program
+      release-arch-arm64:    true
+      release-arch-amd64:    true
+      yaml-lint-skip:        false
+    secrets: inherit
