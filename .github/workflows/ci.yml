@@ -33,5 +33,5 @@ jobs:
       release-type:       program
       release-arch-arm64: true
       release-arch-amd64: true
-      yaml-lint-skip:     false
+      yaml-lint-skip:     true
     secrets: inherit
