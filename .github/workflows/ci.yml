@@ -5,7 +5,8 @@
 name: CI
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
     paths-ignore:
       - '**/*.md'
       - '**/*.txt'
@@ -27,10 +28,10 @@ on:
 
 jobs:
   test:
-    uses: xmidt-org/shared-go/.github/workflows/ci.yml@a98d20363e6225b37af9aa8d2b3c4bdfedbe8020 # v4.8.7
+    uses: xmidt-org/shared-go/.github/workflows/ci.yml@a98d20363e6225b37af9aa8d2b3c4bdfedbe8020   # v4.8.7
     with:
-      release-type:          program
-      release-arch-arm64:    true
-      release-arch-amd64:    true
-      yaml-lint-skip:        false
+      release-type:       program
+      release-arch-arm64: true
+      release-arch-amd64: true
+      yaml-lint-skip:     false
     secrets: inherit
