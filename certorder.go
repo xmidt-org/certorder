@@ -13,25 +13,60 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
+
+	"go.uber.org/zap"
 )
 
 // Bundle represents a collection of certificates that can be ordered into a proper chain.
 // It maintains both the certificates and a mapping of certificates to their source files.
 type Bundle struct {
-	certs []*x509.Certificate
+	certs  []*x509.Certificate
+	logger *zap.Logger
 }
 
 type Option func(*Bundle) error
 
-// FromFile loads a certificate bundle from the specified file.
-func FromFile(file string) Option {
+// WithLogger sets the logger for the bundle.
+func WithLogger(logger *zap.Logger) Option {
 	return func(b *Bundle) error {
-		certs, err := loadFromFile(file)
+		if logger != nil {
+			b.logger = logger
+		} else {
+			b.logger = zap.NewNop()
+		}
+		return nil
+	}
+}
+
+// FromFile loads a certificate bundle from the specified file.
+func FromFile(file string, errIfNoCerts ...bool) Option {
+	return func(b *Bundle) error {
+		dir := filepath.Dir(file)
+		base := filepath.Base(file)
+
+		fsys := os.DirFS(dir)
+		f, err := fsys.Open(base)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to load certificates from %s: %v\n", file, err)
 			return err
 		}
+
+		defer f.Close()
+		data, err := io.ReadAll(f)
+		if err != nil {
+			return err
+		}
+
+		certs, err := parsePEMCertificates(data)
+		if err != nil {
+			return err
+		}
+
+		errIfNoCerts = append(errIfNoCerts, true)
+
+		if len(certs) == 0 && errIfNoCerts[0] {
+			return fmt.Errorf("no valid certificates found in %s", base)
+		}
+
 		b.certs = append(b.certs, certs...)
 		return nil
 	}
@@ -45,31 +80,7 @@ func FromFile(file string) Option {
 // will be included.
 func FromDir(dir string, glob ...string) Option {
 	return func(b *Bundle) error {
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			return fmt.Errorf("failed to read directory %s: %w", dir, err)
-		}
-
-		for _, entry := range entries {
-			if entry.IsDir() {
-				continue
-			}
-
-			filename := entry.Name()
-			if !matchesPattern(filename, glob) {
-				continue
-			}
-
-			fullPath := filepath.Join(dir, filename)
-			certs, err := loadFromFile(fullPath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to load certificates from %s: %v\n", fullPath, err)
-				continue
-			}
-			b.certs = append(b.certs, certs...)
-		}
-
-		return nil
+		return fromFS(os.DirFS(dir), false, glob...)(b)
 	}
 }
 
@@ -81,12 +92,21 @@ func FromDir(dir string, glob ...string) Option {
 // will be included.
 func FromFS(fsys fs.FS, glob ...string) Option {
 	return func(b *Bundle) error {
+		return fromFS(fsys, true, glob...)(b)
+	}
+}
+
+func fromFS(fsys fs.FS, recurse bool, glob ...string) Option {
+	return func(b *Bundle) error {
 		return fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
 
 			if d.IsDir() {
+				if !recurse && path != "." {
+					return fs.SkipDir
+				}
 				return nil
 			}
 
@@ -97,19 +117,38 @@ func FromFS(fsys fs.FS, glob ...string) Option {
 
 			data, err := fs.ReadFile(fsys, path)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to read file %s: %v\n", path, err)
+				b.logger.Warn("Failed to read file", zap.String("path", path), zap.Error(err))
 				return nil
 			}
 
 			certs, err := parsePEMCertificates(data)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to parse certificates from %s: %v\n", path, err)
+				b.logger.Error("Failed to parse certificates from file", zap.String("path", path), zap.Error(err))
 				return nil
 			}
 			b.certs = append(b.certs, certs...)
 
 			return nil
 		})
+	}
+}
+
+// WithData allows a blob of data to be processed as a certificate bundle.
+func WithData(data []byte, errIfNoCerts ...bool) Option {
+	return func(b *Bundle) error {
+		certs, err := parsePEMCertificates(data)
+		if err != nil {
+			return err
+		}
+
+		errIfNoCerts = append(errIfNoCerts, true)
+
+		if len(certs) == 0 && errIfNoCerts[0] {
+			return fmt.Errorf("no valid certificates found in provided data")
+		}
+
+		b.certs = append(b.certs, certs...)
+		return nil
 	}
 }
 
@@ -127,7 +166,9 @@ func WithCerts(certs ...*x509.Certificate) Option {
 
 // New creates a new empty Bundle instance.
 func New(opts ...Option) (*Bundle, error) {
-	b := &Bundle{}
+	b := &Bundle{
+		logger: zap.NewNop(),
+	}
 
 	err := b.Add(opts...)
 	if err != nil {
@@ -144,21 +185,23 @@ func (b *Bundle) Add(opts ...Option) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
 // Ordered sorts the certificates in the bundle into the proper order:
 // root CAs first, then intermediate CAs in chain order, then leaf certificates.
+// Ordered will not return nil as part of the list.
 func (b *Bundle) Ordered() []*x509.Certificate {
-	if len(b.certs) <= 1 {
-		return b.certs
-	}
-
-	roots := make([]*x509.Certificate, len(b.certs))
+	roots := make([]*x509.Certificate, 0, len(b.certs))
 	intermediates := make([]*x509.Certificate, 0, len(b.certs))
 	leaves := make([]*x509.Certificate, 0, len(b.certs))
 
 	for _, cert := range b.certs {
+		if cert == nil {
+			continue
+		}
+
 		if isRootCA(cert) {
 			roots = append(roots, cert)
 			continue
@@ -184,25 +227,20 @@ func (b *Bundle) Ordered() []*x509.Certificate {
 // Write writes the ordered certificates to the provided writer in PEM format.
 func (b *Bundle) Write(w io.Writer) error {
 	orderedCerts := b.Ordered()
+
 	for _, cert := range orderedCerts {
-		if err := pem.Encode(w, &pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: cert.Raw,
-		}); err != nil {
+		err := pem.Encode(w,
+			&pem.Block{
+				Type:  "CERTIFICATE",
+				Bytes: cert.Raw,
+			},
+		)
+		if err != nil {
 			return err
 		}
 	}
-	return nil
-}
 
-// loadFromFile reads and parses all PEM-encoded certificates from a file.
-// Returns a slice of parsed X.509 certificates.
-func loadFromFile(filename string) ([]*x509.Certificate, error) {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-	return parsePEMCertificates(data)
+	return nil
 }
 
 func parsePEMCertificates(data []byte) ([]*x509.Certificate, error) {
@@ -230,7 +268,7 @@ func parsePEMCertificates(data []byte) ([]*x509.Certificate, error) {
 
 func matchesPattern(filename string, patterns []string) bool {
 	if len(patterns) == 0 {
-		return strings.HasSuffix(strings.ToLower(filename), ".pem")
+		patterns = []string{"*.pem", "*.PEM"}
 	}
 
 	for _, pattern := range patterns {
