@@ -4,7 +4,7 @@ SPDX-PackageSupplier = "Comcast Cable Communications Management, LLC"
 SPDX-PackageDownloadLocation = "https://github.com/xmidt-org/certorder"
 
 [[annotations]]
-path = ["go.mod", "go.sum", "NOTICE", "AUTHORS", "MAINTAINERS.md", "CONTRIBUTING.md"]
+path = ["go.mod", "go.sum", "NOTICE", "AUTHORS", "MAINTAINERS.md", "CONTRIBUTING.md", ".codecov.yml", ".yamllint.yml"]
 precedence = "closest"
 SPDX-FileCopyrightText = "2025 Comcast Cable Communications Management, LLC"
 SPDX-License-Identifier = "Apache-2.0"
