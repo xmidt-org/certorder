@@ -215,7 +215,7 @@ func (b *Bundle) Ordered() []*x509.Certificate {
 		leaves = append(leaves, cert)
 	}
 
-	var ordered []*x509.Certificate
+	ordered := make([]*x509.Certificate, 0, len(b.certs))
 
 	ordered = append(ordered, roots...)
 	ordered = append(ordered, orderIntermediates(intermediates)...)
