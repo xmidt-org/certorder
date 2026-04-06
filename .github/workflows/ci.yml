@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ---
-name: ci
+name: CI
 
 permissions:
   pull-requests: read
@@ -33,8 +33,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    name: All checks passed check.
+  ci:
     uses: xmidt-org/shared-go/.github/workflows/ci.yml@a98d20363e6225b37af9aa8d2b3c4bdfedbe8020   # v4.8.7
     with:
       release-type:         program
