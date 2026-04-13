@@ -1,13 +1,7 @@
-# SPDX-FileCopyrightText: 2025 Comcast Cable Communications Management, LLC
+# SPDX-FileCopyrightText: 2022 Comcast Cable Communications Management, LLC
 # SPDX-License-Identifier: Apache-2.0
-
 ---
 name: CI
-
-permissions:
-  pull-requests: read
-  contents: write
-  packages: write
 
 on:
   push:
@@ -20,6 +14,11 @@ on:
       - 'LICENSE'
       - 'NOTICE'
       - '**/docs/**'
+      - README.md
+      - CONTRIBUTING.md
+      - MAINTAINERS.md
+      - LICENSE
+      - NOTICE
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
   pull_request:
@@ -32,11 +31,17 @@ on:
       - '**/docs/**'
   workflow_dispatch:
 
+permissions:
+  pull-requests: read
+  contents: write
+  packages: write
+
 jobs:
   ci:
-    uses: xmidt-org/shared-go/.github/workflows/ci.yml@4468342f575e09429c1b04637dcda065145846e4   # v4.9.40
+    # yamllint disable-line
+    uses: xmidt-org/shared-go/.github/workflows/ci.yml@aff0471aa7e2f96ddb059beb178f63747a7cc57e # v4.9.41
     with:
-      release-type:         library
+      release-type:         program
       release-arch-arm64:   true
       release-arch-amd64:   true
       release-main-package: ./cmd/certorder
