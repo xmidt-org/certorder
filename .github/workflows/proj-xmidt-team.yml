@@ -18,5 +18,5 @@ on:
 
 jobs:
   project:
-    uses: xmidt-org/shared-go/.github/workflows/proj.yml@fe1aac86f0c6b5070e7bda262d3c31cb53cc510c # v4.12.8
+    uses: xmidt-org/shared-go/.github/workflows/proj.yml@033446d5cadab01c9396852cada03720c3ff1815 # v4.12.9
     secrets: inherit
