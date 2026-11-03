@@ -3,7 +3,7 @@ module github.com/xmidt-org/certorder
 go 1.24.2
 
 require (
-	github.com/alecthomas/kong v1.16.1
+	github.com/alecthomas/kong v1.17.0
 	go.uber.org/zap v1.27.1
 )
 
