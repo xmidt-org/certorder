@@ -3,26 +3,51 @@
 ---
 version: "2"
 linters:
+  default: standard
   enable:
+    - asasalint
+    - asciicheck
+    - bidichk
     - bodyclose
+    - copyloopvar
     - dupl
+    - durationcheck
+    - errname
     - errorlint
+    - exhaustive
     - funlen
+    - gocheckcompilerdirectives
     - goconst
+    - gocritic
     - gosec
+    - intrange
+    - makezero
     - misspell
+    - nilerr
+    - noctx
+    - nolintlint
+    - perfsprint
     - prealloc
+    - predeclared
+    - reassign
+    - revive
+    - testifylint
     - unconvert
-  disable:
-    - errcheck
-    - ineffassign
+    - usestdlibvars
+    - wastedassign
   settings:
     errorlint:
       errorf: false
     funlen:
       statements: 60
+    goconst:
+      min-len: 3
+      min-occurrences: 5
     misspell:
       locale: US
+    nolintlint:
+      require-explanation: true
+      require-specific: true
   exclusions:
     generated: lax
     presets:
@@ -35,13 +60,18 @@ linters:
           - bodyclose
           - dupl
           - funlen
+          - goconst
           - gosec
+          - noctx
         path: _test.go
     paths:
       - third_party$
       - builtin$
       - examples$
 formatters:
+  enable:
+    - gofmt
+    - goimports
   exclusions:
     generated: lax
     paths:

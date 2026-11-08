@@ -9,7 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"fmt"
+	"errors"
 	"io"
 	"io/fs"
 	"math/big"
@@ -69,8 +69,8 @@ func TestNew(t *testing.T) {
 			name: "with an option that returns error",
 			opts: []Option{
 				func() Option {
-					return func(b *Bundle) error {
-						return fmt.Errorf("intentional error")
+					return func(_ *Bundle) error {
+						return errors.New("intentional error")
 					}
 				}(),
 			},
@@ -160,7 +160,7 @@ aGVsbG8gd29ybGQ=
 		t.Fatal(err)
 	}
 	// Clean up permissions after test
-	defer os.Chmod(restrictedFile, 0644)
+	defer func() { _ = os.Chmod(restrictedFile, 0644) }()
 
 	tests := []struct {
 		name         string
@@ -1055,7 +1055,7 @@ func TestBundle_Write(t *testing.T) {
 					createTestCert(t, "leaf", false, false),
 				},
 			},
-			writer:    &errorWriter{err: fmt.Errorf("write error")},
+			writer:    &errorWriter{err: errors.New("write error")},
 			wantError: true,
 			wantCount: 0,
 		},
@@ -1439,7 +1439,7 @@ type errorWriter struct {
 	err error
 }
 
-func (ew *errorWriter) Write(p []byte) (int, error) {
+func (ew *errorWriter) Write(_ []byte) (int, error) {
 	return 0, ew.err
 }
 

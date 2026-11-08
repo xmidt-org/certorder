@@ -8,6 +8,7 @@ package certorder
 import (
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -144,7 +145,7 @@ func WithData(data []byte, errIfNoCerts ...bool) Option {
 		errIfNoCerts = append(errIfNoCerts, true)
 
 		if len(certs) == 0 && errIfNoCerts[0] {
-			return fmt.Errorf("no valid certificates found in provided data")
+			return errors.New("no valid certificates found in provided data")
 		}
 
 		b.certs = append(b.certs, certs...)
